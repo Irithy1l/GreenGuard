@@ -20,3 +20,5 @@ Soil_Moisture_Dataset_for_Image_Based_Soil_Classification/
 
 # Trained model artifacts
 models/
+!models/
+!models/soil_water_classifier.pt
