@@ -1,0 +1,329 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GreenGuard Watering Calendar</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f8f2;
+      --panel: #ffffff;
+      --ok: #2e7d32;
+      --no: #c62828;
+      --ink: #24312b;
+      --subtle: #6a7c72;
+      --border: #dbe5de;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top right, #e9f6ea, var(--bg) 45%);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      font-size: 28px;
+      margin: 0;
+      letter-spacing: 0.3px;
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      color: var(--subtle);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab-link {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .tab-link.active {
+      background: #e8f6ea;
+      border-color: #b9d8c0;
+      color: #1f6a2b;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 14px;
+      color: var(--subtle);
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .ok { background: var(--ok); }
+    .no { background: var(--no); }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 6px 24px rgba(45, 74, 58, 0.08);
+      padding: 12px;
+    }
+
+    #status {
+      color: var(--subtle);
+      font-size: 14px;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+
+    #userBadge {
+      font-size: 13px;
+      color: var(--subtle);
+      font-weight: 600;
+    }
+
+    .state-pill {
+      border: 1px solid var(--border);
+      background: #f8fbf8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--subtle);
+    }
+
+    .state-pill.on {
+      color: #1f6a2b;
+      background: #e8f6ea;
+      border-color: #bddfc4;
+    }
+
+    .state-pill.off {
+      color: #8b2d2d;
+      background: #fdeeee;
+      border-color: #f2c9c9;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 class="title">Watering Calendar</h1>
+        <p class="sub">Green means watered that day. Red means not watered (up to today).</p>
+      </div>
+      <div class="actions">
+        <span id="userBadge"></span>
+        <span id="wateringState" class="state-pill">Watering: --</span>
+        <button class="btn" id="refreshBtn">Refresh</button>
+        <button class="btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="tab-link" href="/ai-check">AI Check</a>
+      <a class="tab-link active" href="/">Calendar</a>
+      <a class="tab-link" href="/sensor">Chart</a>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot ok"></span>Watered</span>
+      <span><span class="dot no"></span>Not Watered</span>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="panel">
+      <div id="calendar"></div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const userBadge = document.getElementById("userBadge");
+    const wateringStateEl = document.getElementById("wateringState");
+    let calendar;
+    let wateredSet = new Set();
+    let registerDate = null;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    async function apiFetch(url, options) {
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        window.location.href = "/login";
+        throw new Error("unauthorized");
+      }
+      return res;
+    }
+
+    function toYMD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function addDays(date, n) {
+      const next = new Date(date);
+      next.setDate(next.getDate() + n);
+      return next;
+    }
+
+    async function fetchMe() {
+      const res = await apiFetch("/api/me", { cache: "no-store" });
+      const me = await res.json();
+      userBadge.textContent = `User: ${me.username}`;
+      registerDate = me.register_date || null;
+    }
+
+    async function fetchWateredDates() {
+      const res = await apiFetch("/api/watered-dates", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch watered dates");
+      return await res.json();
+    }
+
+    async function refreshWateringState() {
+      const res = await apiFetch("/latest", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch watering state");
+      const data = await res.json();
+      const state = (data.irrigating || "NO").toUpperCase();
+      wateringStateEl.textContent = `Watering: ${state}`;
+      wateringStateEl.classList.remove("on", "off");
+      wateringStateEl.classList.add(state === "YES" ? "on" : "off");
+    }
+
+    function redrawRange(start, endExclusive) {
+      calendar.getEvents().forEach(e => e.remove());
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const registered = registerDate ? new Date(`${registerDate}T00:00:00`) : null;
+
+      let wateredCount = 0;
+      let dryCount = 0;
+      for (let d = new Date(start); d < endExclusive; d = addDays(d, 1)) {
+        const day = toYMD(d);
+        const next = toYMD(addDays(d, 1));
+        const isFuture = d > today;
+        const beforeRegister = registered ? d < registered : false;
+        const watered = wateredSet.has(day);
+
+        if (watered && !beforeRegister) wateredCount += 1;
+        if (!watered && !isFuture && !beforeRegister) dryCount += 1;
+
+        if (!beforeRegister && (watered || !isFuture)) {
+          calendar.addEvent({
+            start: day,
+            end: next,
+            allDay: true,
+            display: "background",
+            backgroundColor: watered ? "rgba(46, 125, 50, 0.36)" : "rgba(198, 40, 40, 0.20)",
+          });
+        }
+      }
+
+      setStatus(`Watered days: ${wateredCount} | Not watered days: ${dryCount}`);
+    }
+
+    async function refreshAll() {
+      try {
+        setStatus("Loading...");
+        const [dates] = await Promise.all([fetchWateredDates(), refreshWateringState()]);
+        wateredSet = new Set(dates);
+        const view = calendar.view;
+        redrawRange(view.activeStart, view.activeEnd);
+      } catch (err) {
+        if (err.message !== "unauthorized") {
+          setStatus(`Error: ${err.message}`);
+        }
+      }
+    }
+
+    async function logout() {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+        initialView: "dayGridMonth",
+        height: "auto",
+        headerToolbar: {
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek"
+        },
+        datesSet: (info) => {
+          if (wateredSet.size > 0) {
+            redrawRange(info.start, info.end);
+          }
+        }
+      });
+
+      calendar.render();
+      await fetchMe();
+      await refreshAll();
+      refreshBtn.addEventListener("click", refreshAll);
+      logoutBtn.addEventListener("click", logout);
+      setInterval(refreshWateringState, 5000);
+    });
+  </script>
+</body>
+</html>

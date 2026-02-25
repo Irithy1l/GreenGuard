@@ -1,0 +1,226 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GreenGuard Login</title>
+  <style>
+    :root {
+      --bg: #f0f5ef;
+      --panel: #ffffff;
+      --ink: #243228;
+      --subtle: #6b7b70;
+      --border: #d7e2d9;
+      --accent: #2f7d47;
+      --accent-2: #245f36;
+      --error: #b3261e;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 20%, #dbeedc 0 14%, transparent 15%),
+        radial-gradient(circle at 88% 80%, #d4e8d7 0 12%, transparent 13%),
+        var(--bg);
+    }
+
+    .card {
+      width: min(92vw, 420px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(40, 72, 49, 0.13);
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .sub {
+      margin: 6px 0 16px;
+      color: var(--subtle);
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #f9fcf9;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .tab.active {
+      background: #e7f4ea;
+      border-color: #b9d8c0;
+      color: var(--accent-2);
+    }
+
+    form {
+      display: none;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    form.active {
+      display: flex;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--subtle);
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    button[type="submit"] {
+      margin-top: 4px;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    }
+
+    #msg {
+      min-height: 20px;
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--subtle);
+    }
+
+    .err { color: var(--error); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>GreenGuard</h1>
+    <p class="sub">Login or register to view your own sensor dashboard.</p>
+
+    <div class="tabs">
+      <button id="loginTab" class="tab active" type="button">Login</button>
+      <button id="registerTab" class="tab" type="button">Register</button>
+    </div>
+
+    <form id="loginForm" class="active">
+      <div>
+        <label for="loginUsername">Username</label>
+        <input id="loginUsername" autocomplete="username" required />
+      </div>
+      <div>
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit">Login</button>
+    </form>
+
+    <form id="registerForm">
+      <div>
+        <label for="regUsername">Username</label>
+        <input id="regUsername" autocomplete="username" required />
+      </div>
+      <div>
+        <label for="regPassword">Password</label>
+        <input id="regPassword" type="password" autocomplete="new-password" required />
+      </div>
+      <div>
+        <label for="regDevice">Device Name (optional)</label>
+        <input id="regDevice" placeholder="e.g. GreenGuard-01" />
+      </div>
+      <button type="submit">Register</button>
+    </form>
+
+    <div id="msg"></div>
+  </div>
+
+  <script>
+    const loginTab = document.getElementById("loginTab");
+    const registerTab = document.getElementById("registerTab");
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+    const msg = document.getElementById("msg");
+
+    function setTab(tab) {
+      const login = tab === "login";
+      loginTab.classList.toggle("active", login);
+      registerTab.classList.toggle("active", !login);
+      loginForm.classList.toggle("active", login);
+      registerForm.classList.toggle("active", !login);
+      msg.className = "";
+      msg.textContent = "";
+    }
+
+    function setMessage(text, isError = false) {
+      msg.textContent = text;
+      msg.className = isError ? "err" : "";
+    }
+
+    async function postJson(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      return data;
+    }
+
+    loginTab.addEventListener("click", () => setTab("login"));
+    registerTab.addEventListener("click", () => setTab("register"));
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("loginUsername").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      try {
+        await postJson("/api/login", { username, password });
+        window.location.href = "/";
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("regUsername").value.trim();
+      const password = document.getElementById("regPassword").value;
+      const device_name = document.getElementById("regDevice").value.trim();
+      try {
+        await postJson("/api/register", { username, password, device_name });
+        window.location.href = "/";
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+  </script>
+</body>
+</html>

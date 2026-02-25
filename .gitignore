@@ -1,0 +1,22 @@
+﻿# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual envs
+.venv/
+venv/
+
+# Local database and editor artifacts
+*.db
+!temp.db
+*.sqbpro
+
+# Large datasets / generated assets
+dataset/
+soil moisture dataset/
+Soil_Moisture_Dataset_for_Image_Based_Soil_Classification/
+*.zip
+
+# Trained model artifacts
+models/

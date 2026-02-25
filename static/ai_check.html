@@ -1,0 +1,271 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GreenGuard AI Water Check</title>
+  <style>
+    :root {
+      --bg: #eff4f1;
+      --panel: #ffffff;
+      --ink: #21332a;
+      --subtle: #667b70;
+      --border: #d5e2da;
+      --ok: #1f6a2b;
+      --warn: #8b2d2d;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 10% 10%, #deeee4, var(--bg) 40%);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      color: var(--subtle);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab-link {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .tab-link.active {
+      background: #e8f6ea;
+      border-color: #b9d8c0;
+      color: #1f6a2b;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 28px rgba(36, 66, 49, 0.09);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .box {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 220px;
+      background: #fbfdfb;
+    }
+
+    #preview {
+      width: 100%;
+      border-radius: 10px;
+      object-fit: cover;
+      max-height: 320px;
+      display: none;
+    }
+
+    #result {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #f8fbf9;
+      min-height: 88px;
+      font-size: 14px;
+    }
+
+    .decision {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 0 6px;
+    }
+
+    .decision.water { color: var(--ok); }
+    .decision.no-water { color: var(--warn); }
+
+    #status {
+      font-size: 13px;
+      color: var(--subtle);
+      min-height: 20px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 780px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>AI Water Check</h1>
+        <p class="sub">Upload a plant photo and get watering recommendation.</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="tab-link active" href="/ai-check">AI Check</a>
+      <a class="tab-link" href="/">Calendar</a>
+      <a class="tab-link" href="/sensor">Chart</a>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="box">
+          <label for="imageInput"><strong>Plant image</strong></label>
+          <input id="imageInput" type="file" accept="image/*" />
+          <div id="status"></div>
+          <img id="preview" alt="preview" />
+          <div style="margin-top:10px;">
+            <button class="btn" id="analyzeBtn">Run Model</button>
+          </div>
+        </div>
+
+        <div class="box">
+          <strong>Result</strong>
+          <div id="result">
+            Upload an image and click <em>Run Model</em>.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById("imageInput");
+    const preview = document.getElementById("preview");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    async function apiFetch(url, options) {
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        window.location.href = "/login";
+        throw new Error("unauthorized");
+      }
+      return res;
+    }
+
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) {
+        preview.style.display = "none";
+        preview.removeAttribute("src");
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+      setStatus(`Selected: ${file.name}`);
+    });
+
+    analyzeBtn.addEventListener("click", async () => {
+      const file = imageInput.files[0];
+      if (!file) {
+        setStatus("Choose an image first.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      try {
+        setStatus("Running model...");
+        const res = await apiFetch("/api/ai-water-check", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Model request failed");
+        }
+
+        const water = data.recommendation === "WATER";
+        resultEl.innerHTML = `
+          <p class="decision ${water ? "water" : "no-water"}">${water ? "WATER" : "DO NOT WATER"}</p>
+          <div>Confidence: ${(Number(data.confidence) * 100).toFixed(1)}%</div>
+          <div>Model: ${data.model || "unknown"}</div>
+          <div style="margin-top:8px; color:#667b70;">${data.note || ""}</div>
+        `;
+        setStatus("Done.");
+      } catch (err) {
+        if (err.message !== "unauthorized") {
+          setStatus(err.message);
+          resultEl.textContent = "Analysis failed.";
+        }
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GreenGuard Sensor Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --panel: #ffffff;
+      --ink: #213040;
+      --subtle: #708193;
+      --border: #d7e1eb;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #e9f1f8 0%, var(--bg) 240px);
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      color: var(--subtle);
+      font-size: 14px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab-link {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .tab-link.active {
+      background: #e8f6ea;
+      border-color: #bddfc4;
+      color: #1f6a2b;
+    }
+
+    #userBadge {
+      font-size: 13px;
+      color: var(--subtle);
+      font-weight: 600;
+      margin-right: 4px;
+    }
+
+    .state-pill {
+      border: 1px solid var(--border);
+      background: #f8fbf8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--subtle);
+      margin-right: 4px;
+    }
+
+    .state-pill.on {
+      color: #1f6a2b;
+      background: #e8f6ea;
+      border-color: #bddfc4;
+    }
+
+    .state-pill.off {
+      color: #8b2d2d;
+      background: #fdeeee;
+      border-color: #f2c9c9;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--subtle);
+      font-weight: 600;
+    }
+
+    input, button, a {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 14px;
+      background: var(--panel);
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .k {
+      color: var(--subtle);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .v {
+      margin-top: 4px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 6px 28px rgba(29, 63, 88, 0.08);
+    }
+
+    #status {
+      font-size: 14px;
+      color: var(--subtle);
+      margin-bottom: 10px;
+      min-height: 20px;
+    }
+
+    .chart-box {
+      height: 460px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    @media (max-width: 720px) {
+      .chart-box { height: 360px; }
+      .v { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Sensor X-Y Chart</h1>
+        <p class="sub">X axis: time, Y axis: sensor values for your account.</p>
+      </div>
+      <div class="controls">
+        <span id="userBadge"></span>
+        <span id="wateringState" class="state-pill">Watering: --</span>
+        <label for="hours">Hours</label>
+        <input id="hours" type="number" value="24" min="1" max="720">
+        <button id="refreshBtn">Refresh</button>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <a class="tab-link" href="/ai-check">AI Check</a>
+      <a class="tab-link" href="/">Calendar</a>
+      <a class="tab-link active" href="/sensor">Chart</a>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="k">Temperature</div><div id="tempVal" class="v">-</div></div>
+      <div class="card"><div class="k">Humidity</div><div id="humVal" class="v">-</div></div>
+      <div class="card"><div class="k">Soil Moisture</div><div id="soilVal" class="v">-</div></div>
+      <div class="card"><div class="k">Light Level</div><div id="lightVal" class="v">-</div></div>
+      <div class="card"><div class="k">Irrigating</div><div id="irrigatingVal" class="v">-</div></div>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="panel">
+      <div class="chart-box"><canvas id="sensorChart"></canvas></div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const userBadge = document.getElementById("userBadge");
+    const wateringStateEl = document.getElementById("wateringState");
+    const hoursEl = document.getElementById("hours");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const chartCtx = document.getElementById("sensorChart").getContext("2d");
+    let chart;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    async function apiFetch(url, options) {
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        window.location.href = "/login";
+        throw new Error("unauthorized");
+      }
+      return res;
+    }
+
+    async function fetchMe() {
+      const res = await apiFetch("/api/me", { cache: "no-store" });
+      const me = await res.json();
+      userBadge.textContent = `User: ${me.username}`;
+    }
+
+    async function refreshWateringState() {
+      const res = await apiFetch("/latest", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch watering state");
+      const data = await res.json();
+      const state = (data.irrigating || "NO").toUpperCase();
+      wateringStateEl.textContent = `Watering: ${state}`;
+      wateringStateEl.classList.remove("on", "off");
+      wateringStateEl.classList.add(state === "YES" ? "on" : "off");
+    }
+
+    function buildChart(labels, temperature, humidity, soil, light) {
+      const datasets = [
+        { label: "Temperature (C)", data: temperature, borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.08)", yAxisID: "y" },
+        { label: "Humidity (%)", data: humidity, borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.08)", yAxisID: "y" },
+        { label: "Soil Moisture (%)", data: soil, borderColor: "#0f766e", backgroundColor: "rgba(15,118,110,0.08)", yAxisID: "y" },
+        { label: "Light Level (%)", data: light, borderColor: "#ca8a04", backgroundColor: "rgba(202,138,4,0.08)", yAxisID: "y" }
+      ].map(d => ({ ...d, pointRadius: 0, tension: 0.25, borderWidth: 2 }));
+
+      if (chart) chart.destroy();
+      chart = new Chart(chartCtx, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          scales: {
+            x: {
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+              grid: { color: "rgba(140,160,180,0.12)" }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(140,160,180,0.12)" }
+            }
+          }
+        }
+      });
+    }
+
+    function parseSeries(rows) {
+      const byTs = {};
+      for (const r of rows) {
+        if (!byTs[r.ts]) byTs[r.ts] = {};
+        byTs[r.ts][r.sensor_type] = Number(r.value);
+      }
+
+      const labels = [];
+      const temperature = [];
+      const humidity = [];
+      const soil = [];
+      const light = [];
+      const orderedTs = Object.keys(byTs).sort();
+
+      for (const ts of orderedTs) {
+        const date = new Date(ts.replace(" ", "T"));
+        labels.push(date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        temperature.push(byTs[ts].temperature ?? null);
+        humidity.push(byTs[ts].humidity ?? null);
+        soil.push(byTs[ts].soil_moisture ?? null);
+        light.push(byTs[ts].light_level ?? null);
+      }
+
+      return { labels, temperature, humidity, soil, light, byTs, orderedTs };
+    }
+
+    function updateCards(series) {
+      const lastTs = series.orderedTs[series.orderedTs.length - 1];
+      if (!lastTs) {
+        document.getElementById("tempVal").textContent = "-";
+        document.getElementById("humVal").textContent = "-";
+        document.getElementById("soilVal").textContent = "-";
+        document.getElementById("lightVal").textContent = "-";
+        document.getElementById("irrigatingVal").textContent = "-";
+        return;
+      }
+
+      const latest = series.byTs[lastTs];
+      document.getElementById("tempVal").textContent = latest.temperature != null ? `${latest.temperature.toFixed(1)} C` : "-";
+      document.getElementById("humVal").textContent = latest.humidity != null ? `${latest.humidity.toFixed(1)} %` : "-";
+      document.getElementById("soilVal").textContent = latest.soil_moisture != null ? `${latest.soil_moisture.toFixed(0)} %` : "-";
+      document.getElementById("lightVal").textContent = latest.light_level != null ? `${latest.light_level.toFixed(0)} %` : "-";
+
+      if (latest.irrigating != null) {
+        document.getElementById("irrigatingVal").textContent = Number(latest.irrigating) >= 0.5 ? "YES" : "NO";
+      } else {
+        document.getElementById("irrigatingVal").textContent = "-";
+      }
+    }
+
+    async function refresh() {
+      const hours = Number(hoursEl.value || 24);
+      try {
+        setStatus("Loading sensor data...");
+        const res = await apiFetch(`/api/sensor-data?hours=${hours}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        const rows = await res.json();
+
+        const series = parseSeries(rows);
+        buildChart(series.labels, series.temperature, series.humidity, series.soil, series.light);
+        updateCards(series);
+        await refreshWateringState();
+        setStatus(`Loaded ${rows.length} records for last ${hours} hour(s).`);
+      } catch (err) {
+        if (err.message !== "unauthorized") {
+          setStatus(`Error: ${err.message}`);
+        }
+      }
+    }
+
+    async function logout() {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    }
+
+    refreshBtn.addEventListener("click", refresh);
+    logoutBtn.addEventListener("click", logout);
+    document.addEventListener("DOMContentLoaded", async () => {
+      await fetchMe();
+      await refresh();
+      setInterval(refreshWateringState, 5000);
+    });
+  </script>
+</body>
+</html>
