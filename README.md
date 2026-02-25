@@ -1,4 +1,4 @@
-# GreenGuard (EECS 159)
+# GreenGuard
 
 Smart irrigation web app with:
 - Arduino sensor ingest (`temp.ino`)
